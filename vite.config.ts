@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  base: '/to-doo/',
+  base: '/todoo/',
   resolve: {
     alias: {
       '@mui/styled-engine': '@mui/styled-engine-sc'
