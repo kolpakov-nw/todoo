@@ -7,7 +7,7 @@ import type { Todo } from '../../types/todo';
 interface TodoItemProps {
   todo: Todo;
   onDelete: (id: number) => void;
-  onToggle: (id: number) => void;
+  onToggle: (id: Todo) => void;
   onEdit: (todo: Todo) => void;
 }
 
@@ -55,7 +55,7 @@ const TodoItem = ({
   onToggle,
   onEdit
 }: TodoItemProps)=> {
-  const createdAtText = todo.createdAt.toLocaleString('ru-RU', {
+  const createdAtText = new Date(todo.createdAt).toLocaleString('ru-RU', {
     dateStyle: 'short',
     timeStyle: 'short'
   });
@@ -65,7 +65,7 @@ const TodoItem = ({
       <LeftSection>
         <Checkbox
           checked={todo.completed}
-          onChange={() => onToggle(todo.id)}
+          onChange={() => onToggle(todo)}
           inputProps={{ 'aria-label': 'Отметить задачу выполненной' }}
         />
 
@@ -80,9 +80,9 @@ const TodoItem = ({
 
           <Typography
             variant="body2"
-            color={todo.completed ? 'success.main' : 'warning.main'}
+            color="default"
           >
-            Статус: {todo.completed ? 'Готово' : 'Не готово'}
+            Статус: {todo.completed ? 'Готово' : 'Неготово'}
           </Typography>
         </Content>
       </LeftSection>
@@ -97,7 +97,7 @@ const TodoItem = ({
 
         <IconButton
           aria-label="Удалить задачу"
-          color="error"
+          color="default"
           onClick={() => onDelete(todo.id)}
         >
           <DeleteIcon />

@@ -1,10 +1,14 @@
 import React, { useState, type ChangeEvent } from 'react';
 import { Button, TextField } from '@mui/material';
 import styled from 'styled-components';
-
-interface AddTodoProps {
-  onAddTodo: (text: string) => void;
-}
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import {
+  createTodoThunk,
+  fetchTodosThunk,
+  selectTodosFilter,
+  selectTodosLimit,
+  selectTodosPage
+} from '../../store/todosSlice';
 
 const Form = styled.form`
   display: flex;
@@ -31,7 +35,12 @@ const ButtonWrapper = styled.div`
   }
 `;
 
-const AddTodo = ({ onAddTodo }: AddTodoProps) => {
+const AddTodo = () => {
+  const dispatch = useAppDispatch();
+  const page = useAppSelector(selectTodosPage);
+  const limit = useAppSelector(selectTodosLimit);
+  const filter = useAppSelector(selectTodosFilter);
+
   const [text, setText] = useState<string>('');
   const [error, setError] = useState<string>('');
 
@@ -43,7 +52,9 @@ const AddTodo = ({ onAddTodo }: AddTodoProps) => {
     }
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
+  const handleSubmit = async (
+      event: React.FormEvent<HTMLFormElement>
+  ): Promise<void> => {
     event.preventDefault();
 
     const trimmedText = text.trim();
@@ -53,37 +64,40 @@ const AddTodo = ({ onAddTodo }: AddTodoProps) => {
       return;
     }
 
-    onAddTodo(trimmedText);
+    await dispatch(createTodoThunk({ text: trimmedText })).unwrap();
+
     setText('');
     setError('');
+
+    dispatch(fetchTodosThunk({ page, limit, filter }));
   };
 
   return (
-    <Form onSubmit={handleSubmit}>
-      <InputWrapper>
-        <TextField
-          fullWidth
-          label="ввод задачи"
-          variant="outlined"
-          value={text}
-          onChange={handleChange}
-          error={Boolean(error)}
-          helperText={error || ' '}
-        />
-      </InputWrapper>
+      <Form onSubmit={handleSubmit}>
+        <InputWrapper>
+          <TextField
+              fullWidth
+              label="ввод задачи"
+              variant="outlined"
+              value={text}
+              onChange={handleChange}
+              error={Boolean(error)}
+              helperText={error || ' '}
+          />
+        </InputWrapper>
 
-      <ButtonWrapper>
-        <Button
-          fullWidth
-          type="submit"
-          variant="contained"
-          size="large"
-          sx={{ height: '56px' }}
-        >
-          добавить
-        </Button>
-      </ButtonWrapper>
-    </Form>
+        <ButtonWrapper>
+          <Button
+              fullWidth
+              type="submit"
+              variant="contained"
+              size="large"
+              sx={{ height: '56px' }}
+          >
+            добавить
+          </Button>
+        </ButtonWrapper>
+      </Form>
   );
 };
 

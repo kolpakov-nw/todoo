@@ -1,12 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState, type ChangeEvent } from 'react';
 import {
+  Alert,
   Container,
   FormControl,
   InputLabel,
   MenuItem,
+  Pagination,
   Paper,
   Select,
   type SelectChangeEvent,
+  Stack,
   Switch,
   Typography
 } from '@mui/material';
@@ -15,22 +18,35 @@ import AddTodo from './components/AddTodo/AddTodo';
 import EditTodo from './components/EditTodo/EditTodo';
 import TodoList from './components/TodoList/TodoList';
 import { useThemeContext } from './teme/Theme';
-import type { Todo } from './types/todo';
+import type { Todo, TodoFilter } from './types/todo';
+import { useAppDispatch, useAppSelector } from './store/hooks';
 import {
-  getTodosFromStorage,
-  saveTodosToStorage
-} from './save/localStorage';
+  deleteTodoThunk,
+  fetchTodosThunk,
+  selectTodos,
+  selectTodosError,
+  selectTodosFilter,
+  selectTodosLimit,
+  selectTodosPage,
+  selectTodosStatus,
+  selectTodosTotal,
+  selectTodosTotalPages,
+  setFilter,
+  setLimit,
+  setPage,
+  updateTodoStatusThunk,
+  updateTodoThunk
+} from './store/todosSlice';
 
 type SortOrder = 'newest' | 'oldest';
-type FilterType = 'all' | 'completed' | 'active';
 
 const Page = styled.div`
-  height: 100vh;
-  /*width: 100%;*/
+  min-height: 100vh;
   background: ${({ theme }) => theme.palette.background.default};
   color: ${({ theme }) => theme.palette.text.primary};
   padding: 32px 0;
 `;
+
 
 const HeaderCard = styled(Paper)`
   padding: 24px;
@@ -46,28 +62,28 @@ const HeaderTop = styled.div`
   gap: 16px;
   margin-bottom: 20px;
 
-    @media (max-width: 700px) {
-      flex-direction: column;
-      align-items: flex-start;
-    }
+  @media (max-width: 700px) {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 `;
 
 const ThemeSwitcher = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 `;
 
 const Controls = styled.div`
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-top: 8px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  margin-top: 8px;
 
-      @media (max-width: 700px) {
-        display: grid;
-        grid-template-columns: 1fr;
-      }
+  @media (max-width: 700px) {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
 `;
 
 const ContentCard = styled(Paper)`
@@ -76,40 +92,52 @@ const ContentCard = styled(Paper)`
   background-color: ${({ theme }) => theme.palette.background.paper};
 `;
 
+const PaginationWrapper = styled.div`
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+`;
+
 const App = () => {
-  const [todos, setTodos] = useState<Todo[]>(() => getTodosFromStorage());
-  const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
-  const [filter, setFilter] = useState<FilterType>('all');
-  const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
+  const dispatch = useAppDispatch();
   const { mode, toggleTheme } = useThemeContext();
+  const todos = useAppSelector(selectTodos);
+  const status = useAppSelector(selectTodosStatus);
+  const error = useAppSelector(selectTodosError);
+  const page = useAppSelector(selectTodosPage);
+  const limit = useAppSelector(selectTodosLimit);
+  const filter = useAppSelector(selectTodosFilter);
+  const total = useAppSelector(selectTodosTotal);
+  const totalPages = useAppSelector(selectTodosTotalPages);
+  const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
+  const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
+
+
 
   useEffect(() => {
-    saveTodosToStorage(todos);
-  }, [todos]);
+    dispatch(fetchTodosThunk({ page, limit, filter }));
+  }, [dispatch, page, limit, filter]);
 
-  const handleAddTodo = (text: string): void => {
-    const newTodo: Todo = {
-      id: Date.now(),
-      text,
-      completed: false,
-      createdAt: new Date()
-    };
-
-    setTodos((prevTodos) => [newTodo, ...prevTodos]);
+  const reloadTodos = (): void => {
+    dispatch(fetchTodosThunk({ page, limit, filter }));
   };
 
-  const handleDeleteTodo = (id: number): void => {
-    setTodos((prevTodos) => prevTodos.filter((todo) => todo.id !== id));
+  const handleDeleteTodo = async (id: number): Promise<void> => {
+    await dispatch(deleteTodoThunk(id)).unwrap();
+    reloadTodos();
   };
 
-  const handleToggleTodo = (id: number): void => {
-    setTodos((prevTodos) =>
-      prevTodos.map((todo) =>
-        todo.id === id
-          ? { ...todo, completed: !todo.completed }
-          : todo
-      )
-    );
+  const handleToggleTodo = async (todo: Todo): Promise<void> => {
+    await dispatch(
+        updateTodoStatusThunk({
+          id: todo.id,
+          statusData: {
+            completed: !todo.completed
+          }
+        })
+    ).unwrap();
+
+    reloadTodos();
   };
 
   const handleOpenEdit = (todo: Todo): void => {
@@ -120,132 +148,170 @@ const App = () => {
     setEditingTodo(null);
   };
 
-  const handleSaveEdit = (text: string): void => {
+  const handleSaveEdit = async (text: string): Promise<void> => {
     if (!editingTodo) {
       return;
     }
 
-    setTodos((prevTodos) =>
-      prevTodos.map((todo) =>
-        todo.id === editingTodo.id ? { ...todo, text } : todo
-      )
-    );
+    await dispatch(
+        updateTodoThunk({
+          id: editingTodo.id,
+          todoData: {
+            text
+
+
+          },
+        })
+    ).unwrap();
 
     setEditingTodo(null);
+    reloadTodos();
   };
 
   const handleSortChange = (
-    event: SelectChangeEvent<SortOrder>
+      event: SelectChangeEvent<SortOrder>
   ): void => {
     setSortOrder(event.target.value as SortOrder);
   };
 
   const handleFilterChange = (
-    event: SelectChangeEvent<FilterType>
+      event: SelectChangeEvent<TodoFilter>
   ): void => {
-    setFilter(event.target.value as FilterType);
+    dispatch(setFilter(event.target.value as TodoFilter));
   };
 
-  const visibleTodos = useMemo(() => {
-    const filteredTodos = todos.filter((todo) => {
-      if (filter === 'completed') {
-        return todo.completed;
-      }
+  const handleLimitChange = (
+      event: SelectChangeEvent<number>
+  ): void => {
+    dispatch(setLimit(Number(event.target.value)));
+  };
 
-      if (filter === 'active') {
-        return !todo.completed;
-      }
+  const handlePageChange = (
+      _event: ChangeEvent<unknown>,
+      value: number
+  ): void => {
+    dispatch(setPage(value));
+  };
 
-      return true;
-    });
+  const safeTodos = Array.isArray(todos) ? todos : [];
 
-    return [...filteredTodos].sort((firstTodo, secondTodo) => {
-      const firstDate = firstTodo.createdAt.getTime();
-      const secondDate = secondTodo.createdAt.getTime();
+  const sortedTodos = [...safeTodos].sort((firstTodo, secondTodo) => {
+    const firstDate = new Date(firstTodo.createdAt).getTime();
+    const secondDate = new Date(secondTodo.createdAt).getTime();
 
-      return sortOrder === 'newest'
+    return sortOrder === 'newest'
         ? secondDate - firstDate
         : firstDate - secondDate;
-    });
-  }, [filter, sortOrder, todos]);
-
-  const completedCount = todos.filter((todo) => todo.completed).length;
-  const activeCount = todos.length - completedCount;
+  });
 
   return (
-    <Page>
-      <Container maxWidth="md">
-        <HeaderCard elevation={0}>
-          <HeaderTop>
-            <div>
-              <Typography variant="h4" fontWeight={700} gutterBottom>
-                To do List
-              </Typography>
-            </div>
+      <Page>
+        <Container maxWidth="md">
+          <HeaderCard elevation={0}>
+            <HeaderTop>
+              <div>
+                <Typography variant="h4" fontWeight={700} gutterBottom>
+                  To do List
+                </Typography>
+              </div>
 
-            <ThemeSwitcher>
+              <ThemeSwitcher>
+                <Typography variant="body1">
+                  {mode === 'light' ? 'Дневной' : 'Ночной'}
+                </Typography>
+                <Switch checked={mode === 'dark'} onChange={toggleTheme} />
+              </ThemeSwitcher>
+            </HeaderTop>
+
+            <AddTodo />
+
+            <Controls>
+              <FormControl fullWidth>
+                <InputLabel id="sort-label">Сортировка</InputLabel>
+                <Select<SortOrder>
+                    labelId="sort-label"
+                    value={sortOrder}
+                    label="Сортировка"
+                    onChange={handleSortChange}
+                >
+                  <MenuItem value="newest">Сначало новые</MenuItem>
+                  <MenuItem value="oldest">Сначало старые</MenuItem>
+                </Select>
+              </FormControl>
+
+              <FormControl fullWidth>
+                <InputLabel id="filter-label">Фильтр</InputLabel>
+                <Select<TodoFilter>
+                    labelId="filter-label"
+                    value={filter}
+                    label="Фильтр"
+                    onChange={handleFilterChange}
+                >
+                  <MenuItem value="all">Все</MenuItem>
+                  <MenuItem value="completed">Выполненые</MenuItem>
+                  <MenuItem value="active">Невыполненые</MenuItem>
+                </Select>
+              </FormControl>
+
+              <FormControl fullWidth>
+                <InputLabel id="limit-label">Количество</InputLabel>
+                <Select<number>
+                    labelId="limit-label"
+                    value={limit}
+                    label="Количество"
+                    onChange={handleLimitChange}
+                >
+                  <MenuItem value={5}>5</MenuItem>
+                  <MenuItem value={10}>10</MenuItem>
+                  <MenuItem value={20}>20</MenuItem>
+                </Select>
+              </FormControl>
+            </Controls>
+          </HeaderCard>
+
+          <ContentCard elevation={0}>
+            <Stack spacing={2}>
               <Typography variant="body1">
-                {mode === 'light' ? 'Дневной' : 'Ночной'}
+                Всего задач: <strong>{total}</strong> | Страница:{' '}
+                <strong>{page}</strong> из <strong>{totalPages}</strong>
               </Typography>
-              <Switch checked={mode === 'dark'} onChange={toggleTheme} />
-            </ThemeSwitcher>
-          </HeaderTop>
 
-          <AddTodo onAddTodo={handleAddTodo} />
+              {status === 'loading' && (
+                  <Typography variant="body1">loading todo</Typography>
+              )}
 
-          <Controls>
-            <FormControl fullWidth>
-              <InputLabel id="sort-label">Сортировка</InputLabel>
-              <Select<SortOrder>
-                labelId="sort-label"
-                value={sortOrder}
-                label="Сортировка"
-                onChange={handleSortChange}
-              >
-                <MenuItem value="newest">Сначало новые</MenuItem>
-                <MenuItem value="oldest">Сначало старые</MenuItem>
-              </Select>
-            </FormControl>
+              {error && <Alert severity="error">{error}</Alert>}
 
-            <FormControl fullWidth>
-              <InputLabel id="filter-label">Фильтр</InputLabel>
-              <Select<FilterType>
-                labelId="filter-label"
-                value={filter}
-                label="Фильтр"
-                onChange={handleFilterChange}
-              >
-                <MenuItem value="all">Все</MenuItem>
-                <MenuItem value="completed">Выполненые </MenuItem>
-                <MenuItem value="active">Невыполненые</MenuItem>
-              </Select>
-            </FormControl>
-          </Controls>
-        </HeaderCard>
+              {status !== 'loading' && (
+                  <TodoList
+                      todos={sortedTodos}
+                      onDeleteTodo={handleDeleteTodo}
+                      onToggleTodo={handleToggleTodo}
+                      onEditTodo={handleOpenEdit}
+                  />
+              )}
 
-        <ContentCard elevation={0}>
-          <Typography variant="body1" sx={{ mb: 2 }}>
-            Всего задач: <strong>{todos.length}</strong> | Готовые:{' '}
-            <strong>{completedCount}</strong> | Неготовые:{' '}
-            <strong>{activeCount}</strong>
-          </Typography>
+              {totalPages > 1 && (
+                  <PaginationWrapper>
+                    <Pagination
+                        page={page}
+                        count={totalPages}
+                        color="primary"
+                        onChange={handlePageChange}
+                    />
+                  </PaginationWrapper>
+              )}
+            </Stack>
+          </ContentCard>
 
-          <TodoList
-            todos={visibleTodos}
-            onDeleteTodo={handleDeleteTodo}
-            onToggleTodo={handleToggleTodo}
-            onEditTodo={handleOpenEdit}
+          <EditTodo
+              open={Boolean(editingTodo)}
+              initialText={editingTodo?.text ?? ''}
+              onSave={handleSaveEdit}
+              onClose={handleCloseEdit}
           />
-        </ContentCard>
-
-        <EditTodo
-          open={Boolean(editingTodo)}
-          initialText={editingTodo?.text ?? ''}
-          onSave={handleSaveEdit}
-          onClose={handleCloseEdit}
-        />
-      </Container>
-    </Page>
+        </Container>
+      </Page>
   );
 };
 
