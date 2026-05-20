@@ -2,7 +2,7 @@ import { Card, Checkbox, IconButton, Typography } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import styled from 'styled-components';
-import type { Todo } from '../../types/todo';
+import type { Todo } from '../types/todo';
 
 interface TodoItemProps {
   todo: Todo;

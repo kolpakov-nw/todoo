@@ -10,9 +10,8 @@ import type {
     CreateTodoDto,
     Todo,
     TodoFilter,
-    TodosApiResponse,
-    UpdateTodoDto,
-    UpdateTodoStatusDto
+    TodosResponse,
+    UpdateTodoDto
 } from '../types/todo';
 import type { RootState } from './store';
 
@@ -42,7 +41,6 @@ interface UpdateTodoParams {
 
 interface UpdateTodoStatusParams {
     id: number;
-    statusData: UpdateTodoStatusDto;
 }
 
 const initialState: TodosState = {
@@ -57,14 +55,14 @@ const initialState: TodosState = {
 };
 
 export const fetchTodosThunk = createAsyncThunk<
-    TodosApiResponse,
+    TodosResponse,
     FetchTodosParams,
     { rejectValue: string }
->('todos/fetchTodos', async ({ page, limit, filter }, { rejectWithValue }) => {
+>('todos/fetchTodos', async ({ page, limit }, { rejectWithValue }) => {
     try {
-        return await fetchTodos(page, limit, filter);
+        return await fetchTodos(page, limit);
     } catch {
-        return rejectWithValue('server error');
+        return rejectWithValue('load error');
     }
 });
 
@@ -76,7 +74,7 @@ export const createTodoThunk = createAsyncThunk<
     try {
         return await createTodo(todoData);
     } catch {
-        return rejectWithValue('error create');
+        return rejectWithValue('create error');
     }
 });
 
@@ -88,7 +86,7 @@ export const deleteTodoThunk = createAsyncThunk<
     try {
         return await deleteTodo(id);
     } catch {
-        return rejectWithValue('error del');
+        return rejectWithValue('dellite error');
     }
 });
 
@@ -100,7 +98,7 @@ export const updateTodoThunk = createAsyncThunk<
     try {
         return await updateTodo(id, todoData);
     } catch {
-        return rejectWithValue('update error');
+        return rejectWithValue('Не удалось обновить задачу');
     }
 });
 
@@ -108,11 +106,11 @@ export const updateTodoStatusThunk = createAsyncThunk<
     Todo,
     UpdateTodoStatusParams,
     { rejectValue: string }
->('todos/updateTodoStatus', async ({ id, statusData }, { rejectWithValue }) => {
+>('todos/updateTodoStatus', async ({ id }, { rejectWithValue }) => {
     try {
-        return await updateTodoStatus(id, statusData);
+        return await updateTodoStatus(id);
     } catch {
-        return rejectWithValue('update error');
+        return rejectWithValue('update status error');
     }
 });
 
@@ -140,27 +138,27 @@ const todosSlice = createSlice({
             })
             .addCase(fetchTodosThunk.fulfilled, (state, action) => {
                 state.status = 'succeeded';
-                state.items = Array.isArray(action.payload.todos) ? action.payload.todos : [];
-                state.total = action.payload.total;
-                state.page = action.payload.page;
-                state.limit = action.payload.limit;
-                state.totalPages = action.payload.totalPages || 1;
+                state.items = action.payload.data;
+                state.total = action.payload.pagination.total;
+                state.page = action.payload.pagination.page;
+                state.limit = action.payload.pagination.limit;
+                state.totalPages = action.payload.pagination.totalPages || 1;
             })
             .addCase(fetchTodosThunk.rejected, (state, action) => {
                 state.status = 'failed';
-                state.error = action.payload || 'terror add';
+                state.error = action.payload || 'load error';
             })
             .addCase(createTodoThunk.rejected, (state, action) => {
-                state.error = action.payload || 'error add';
+                state.error = action.payload || 'creat error';
             })
             .addCase(deleteTodoThunk.rejected, (state, action) => {
-                state.error = action.payload || 'error delete';
+                state.error = action.payload || 'delete error';
             })
             .addCase(updateTodoThunk.rejected, (state, action) => {
-                state.error = action.payload || 'error update';
+                state.error = action.payload || 'update error';
             })
             .addCase(updateTodoStatusThunk.rejected, (state, action) => {
-                state.error = action.payload || 'error update';
+                state.error = action.payload || 'update status error';
             });
     }
 });

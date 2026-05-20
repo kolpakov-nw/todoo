@@ -10,6 +10,9 @@ export const saveThemeToStorage = (mode: 'light' | 'dark'): void => {
 
 export const getThemeFromStorage = (): 'light' | 'dark' => {
   const storedTheme = localStorage.getItem(THEME_KEY);
-
-  return storedTheme === 'dark' ? 'dark' : 'light';
+  if (storedTheme === 'dark') {
+    return 'dark';
+  }
+  return 'light';
 };
+

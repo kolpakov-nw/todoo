@@ -1,14 +1,14 @@
-import React, { useState, type ChangeEvent } from 'react';
+import { useState, type ChangeEvent, type FormEvent } from 'react';
 import { Button, TextField } from '@mui/material';
 import styled from 'styled-components';
-import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
   createTodoThunk,
   fetchTodosThunk,
   selectTodosFilter,
   selectTodosLimit,
   selectTodosPage
-} from '../../store/todosSlice';
+} from '../store/todosSlice';
 
 const Form = styled.form`
   display: flex;
@@ -52,9 +52,7 @@ const AddTodo = () => {
     }
   };
 
-  const handleSubmit = async (
-      event: React.FormEvent<HTMLFormElement>
-  ): Promise<void> => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
 
     const trimmedText = text.trim();
@@ -64,12 +62,17 @@ const AddTodo = () => {
       return;
     }
 
-    await dispatch(createTodoThunk({ text: trimmedText })).unwrap();
+    try {
+      await dispatch(createTodoThunk({ text: trimmedText })).unwrap();
 
-    setText('');
-    setError('');
+      setText('');
+      setError('');
 
-    dispatch(fetchTodosThunk({ page, limit, filter }));
+      dispatch(fetchTodosThunk({ page, limit, filter }));
+    } catch (error) {
+      setError('error create');
+      console.error('error create', error);
+    }
   };
 
   return (

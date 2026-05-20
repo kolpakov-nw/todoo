@@ -1,7 +1,7 @@
 import { Typography } from '@mui/material';
 import styled from 'styled-components';
-import type { Todo } from '../../types/todo';
-import TodoItem from '../TodoItem/TodoItem';
+import type { Todo } from '../types/todo';
+import TodoItem from './TodoItem';
 
 interface TodoListProps {
   todos: Todo[];
