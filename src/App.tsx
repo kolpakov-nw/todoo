@@ -9,7 +9,7 @@ import NotFoundPage from './page/NotFoundPage';
 
 const App = () => {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/todoo">
       <Routes>
         <Route
           path="/"
